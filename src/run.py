@@ -1,6 +1,9 @@
 import asyncio
+
 from src.feedback import generate_feedback
 from src.search_queries import generate_search_queries
+from src.search import search_web
+from src.process_result import process_serp_result
 
 async def main():
     initial_query = input(
@@ -26,7 +29,7 @@ async def main():
     combined_query = initial_query
 
     if is_report:
-        print("Begin clarfying questions...")
+        print("Begin clarifying questions...")
 
         questions = await generate_feedback(initial_query)
 
@@ -51,11 +54,45 @@ async def main():
 
     print("\nGenerated search queries: ")
 
+
+    learnings = []
+    follow_up_questions = []
+
     for item in search_queries:
+
         print("\nQuery:", item["query"])
         print("Research goal:", item["research_goal"])
-    print(combined_query)
-    print(f"breadth:{breadth}, depth:{depth}")
+
+        results = await search_web(
+            item["query"]
+        )
+
+        processed_results = await process_serp_result(
+            item["query"],
+            results
+        )
+
+        learnings.extend(
+            processed_results["learnings"]
+        )
+
+        follow_up_questions.extend(
+            processed_results["follow_up_questions"]
+        )
+
+        print("\nLearnings:")
+        for learning in learnings:
+            print("-",learning)
+
+        print("\nFollow-up Questions: ")
+        for question in follow_up_questions:
+            print("-",question)
+
+
+
+
+
+
 
 
 if __name__ == "__main__":
