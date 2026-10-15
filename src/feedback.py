@@ -14,7 +14,9 @@ if not api_key or api_key == "DEEPSEEK_API_KEY":
 
 client = AsyncOpenAI(
     api_key=api_key,
-    base_url="https://api.deepseek.com"
+    base_url="https://api.deepseek.com",
+    timeout = 60.0,
+    max_retries = 0
 )
 
 async def generate_feedback(query,num_questions=3):
@@ -35,7 +37,7 @@ async def generate_feedback(query,num_questions=3):
             {"role":"user","content":prompt},
         ],
         response_format = {"type": "json_object"},
-        max_tokens=500
+        max_tokens=2000
     )
 
     content = response.choices[0].message.content
@@ -43,6 +45,9 @@ async def generate_feedback(query,num_questions=3):
     if not content:
         raise ValueError("模型返回了空内容")
 
+
+    if response.choices[0].finish_reason == "length":
+        raise ValueError("Feedback output was truncated; JSON is incomplete")
     data = json.loads(content)
 
     if not isinstance(data,dict):

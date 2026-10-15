@@ -8,6 +8,8 @@ async def generate_search_queries(
         num_queries=3,
         learnings=None
 ):
+
+    previous_learnings = "\n".join(learnings or [])
     prompt = (
         "Generate search queries for researching the following topic. "
         f"Generate at most {num_queries} search queries. "
@@ -15,6 +17,8 @@ async def generate_search_queries(
         f"<query>{query}</query>\n"
         "Return JSON format:\n"
         '{"queries":[{"query":"...","research_goal":"..."}]}'
+        f"\nprevious research fidings:\n{previous_learnings}"
+        "Avoid repeating questions already answered b these findings.\n"
     )
 
 

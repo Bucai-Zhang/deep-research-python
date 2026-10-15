@@ -1,9 +1,8 @@
 import asyncio
 
 from src.feedback import generate_feedback
-from src.search_queries import generate_search_queries
-from src.search import search_web
-from src.process_result import process_serp_result
+from src.deep_research import deep_research
+from src.report import write_final_report,write_final_answer,save_report
 
 async def main():
     initial_query = input(
@@ -29,9 +28,9 @@ async def main():
     combined_query = initial_query
 
     if is_report:
-        print("Begin clarifying questions...")
-
+        print("Begin clarifying questions...", flush=True)
         questions = await generate_feedback(initial_query)
+        print("Feedback returned successfully.", flush=True)
 
         if questions:
             combined_query += "\n\nFollow-up questions and answers:"
@@ -45,54 +44,50 @@ async def main():
                 f"\nAnswer:{answer}"
             )
 
-    print("\n整理后的研究需求: ")
 
-    search_queries = await generate_search_queries(
+    research_result = await deep_research(
         combined_query,
-        breadth
+        breadth=breadth,
+        depth=depth
     )
 
-    print("\nGenerated search queries: ")
+    print("\nResearch Learnings:")
 
+    for learning in research_result["learnings"]:
+        print("-",learning)
 
-    learnings = []
-    follow_up_questions = []
+    print("\nSources:")
 
-    for item in search_queries:
+    for source in research_result["sources"]:
+        print("-", source)
 
-        print("\nQuery:", item["query"])
-        print("Research goal:", item["research_goal"])
+    if is_report:
+        print("\nGenerating final report...")
 
-        results = await search_web(
-            item["query"]
+        output = await write_final_report(
+            query = combined_query,
+            learnings = research_result["learnings"],
+            sources = research_result["sources"],
         )
 
-        processed_results = await process_serp_result(
-            item["query"],
-            results
+
+    else:
+        print("\nGenerating final answer...")
+
+        output = await write_final_answer(
+            query=combined_query,
+            learnings=research_result["learnings"]
         )
 
-        learnings.extend(
-            processed_results["learnings"]
-        )
-
-        follow_up_questions.extend(
-            processed_results["follow_up_questions"]
-        )
-
-        print("\nLearnings:")
-        for learning in learnings:
-            print("-",learning)
-
-        print("\nFollow-up Questions: ")
-        for question in follow_up_questions:
-            print("-",question)
 
 
-
-
-
-
+    title = output["title"]
+    content = output["content"]
+    print("\nTitle:", title)
+    print("\nFinal output:\n", content)
+    prefix = "report" if is_report else "answer"
+    file_path = save_report(content, title=title, prefix=prefix)
+    print("\nOutput saved to:", file_path)
 
 
 if __name__ == "__main__":
