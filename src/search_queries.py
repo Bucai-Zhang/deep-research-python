@@ -17,7 +17,7 @@ async def generate_search_queries(
         f"<query>{query}</query>\n"
         "Return JSON format:\n"
         '{"queries":[{"query":"...","research_goal":"..."}]}'
-        f"\nprevious research fidings:\n{previous_learnings}"
+        f"\nprevious research findings:\n{previous_learnings}"
         "Avoid repeating questions already answered b these findings.\n"
     )
 
