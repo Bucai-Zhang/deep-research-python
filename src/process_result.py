@@ -1,39 +1,78 @@
+#负责讲文本处理模块与整个研究流程串联起来，输出本轮经过大模型的研究成果
+
+
 import json
 
 from src.prompt import system_prompt
 from src.feedback import client
+from src.text_processing import (
+    build_candidates,
+    extract_keywords,
+    select_global_candidates,
+)
 
+#对每一个搜索到的结果进行处理
 async def process_serp_result(
         query,
         result,
         num_learnings = 3,
         num_follow_up_questions = 3
 ):
-    contents = []
-    sources = []
 
+    candidates = []
+    keywords = extract_keywords(query)
+
+
+    #当前查询下的result进行一次处理
     for item in result.web or []:
-        if not item.description:
+
+        metadata = item.metadata
+        content = item.markdown or metadata.description
+
+        if not content:
             continue
 
-        contents.append(
-            f"Title: {item.title or 'Untitled'}\n"
-            f"URL: {item.url}\n"
-            f"Content:\n{item.description[:5000]}"
-        )
-
-        if item.url:
-            sources.append(item.url)
+        #对建立的candidates 进行循环，给每个候选块添加上title键
+        for candidate in build_candidates(content,metadata.url,keywords):
+            candidate["title"] = metadata.title or "Untitled"
+            candidates.append(candidate)
 
 
-    if not contents:
+
+    #筛选出来有价值的信息块
+    selected_candidates = select_global_candidates(candidates)
+
+    if not selected_candidates:
         return {
             "learnings":[],
             "follow_up_questions":[],
-            "sources":sources
+            "sources":[]
         }
 
-    formatted_contents = "\n\n---\n\n".join(contents)
+    #按照url排序，相同地址的块按照index排序保证前后文顺序
+    selected_candidates.sort(
+        key = lambda c : (c["url"] or "",c["index"])
+    )
+
+    sources = []
+
+    #保存去重后的地址到sources中
+    for candidate in selected_candidates:
+        if candidate["url"] and candidate["url"] not in sources:
+            sources.append(candidate["url"])
+
+
+
+
+
+
+    #格式化内容  join后面只能是字符串
+    formatted_contents = "\n\n---\n\n".join(
+        f"Title: {c['title']}\n"
+        f"URL: {c['url']}\n"
+        f"Content:{c['text']}"
+        for c in selected_candidates
+    )
 
     prompt = (
         "You are a research assistant.\n"
@@ -81,8 +120,10 @@ async def process_serp_result(
             data = json.loads(content)
             break
         except json.JSONDecodeError:
+            #第二次解析失败的话，抛出异常
             if attempt == 1:
                 raise
+            #第一次解析失败的话
             messages.extend([
                 {"role": "assistant", "content": content},
                 {"role": "user", "content":
@@ -125,5 +166,5 @@ async def process_serp_result(
         "learnings":learnings[:num_learnings],
         "follow_up_questions":
             follow_up_questions[:num_follow_up_questions],
-        "sources":sources
+        "sources": sources
     }
