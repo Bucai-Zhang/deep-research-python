@@ -2,7 +2,7 @@ import os
 import asyncio
 
 from dotenv import load_dotenv
-from firecrawl import Firecrawl
+from firecrawl import AsyncFirecrawl
 
 
 
@@ -13,12 +13,12 @@ firecrawl_key = os.getenv("FIRECRAWL_KEY")
 if not firecrawl_key:
     raise RuntimeError("FIRECRAWL_KEY is missing")
 
-firecrawl = Firecrawl(
+firecrawl = AsyncFirecrawl(
     api_key = firecrawl_key
 )
 
 async def search_web(query):
-    result = firecrawl.search(
+    result = await firecrawl.search(
         query,
         limit=5,
         scrape_options={
